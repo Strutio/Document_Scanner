@@ -1,6 +1,5 @@
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
 
 # Beginning by accessing the webcam from the user
 
@@ -61,20 +60,35 @@ cv2.destroyAllWindows()
 
 img = cv2.imread("file_screenshot_0.png")
 
-img2 = cv2.GaussianBlur(img, (7, 7), 1.41)
+img2 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+img2 = cv2.GaussianBlur(img2, (7, 7), 1.41)
 
 edges = cv2.Canny(img2, 100, 200)
 
+cv2.imshow("Original image", edges)
+
 # smoothening the image to help find edges
 
-kernel = np.ones((15, 15),np.float32)/225
-edges = cv2.filter2D(edges, -1, kernel)
+# felt that smoothening the image caused borders to be more skewed, decided to comment it out for the time being
 
-plt.subplots(figsize=(20, 20))
+#kernel = np.ones((15, 15),np.float32)/225
+#edges = cv2.filter2D(edges, -1, kernel)
 
-plt.imshow(edges,cmap = 'gray')
+#### END OF SMOOTHENING ####
 
-plt.show()
+#### CONTOUR FUNCTION ####
 
+# look at these params documentation further
 
+# first param is source image, second is contour retrieval mode, third is contour approximation method
 
+contours, hierarchy = cv2.findContours(edges.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+# now drawing the contours
+
+# first param is source image, second is the contours created before, third is the index of contours, to draw all use -1, last is color, thickness, etc
+
+cv2.drawContours(img2, contours, -1, (0,255,0), 3)
+
+cv2.imshow("Contoured image", img2)  
+cv2.waitKey(0)
