@@ -1,9 +1,10 @@
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
 # Beginning by accessing the webcam from the user
 
-cam = cv2.VideoCapture(1)
+cam = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 
 
 # Making sure the webcam is being opened
@@ -33,40 +34,47 @@ while True:
     if c == 27:
         break
 
-# using curly brackets as placeholders to be paired with format(), ensuring no screenshots get overwritten during the process
+# realized that there's no point in saving more than one screenshot, just utilizing the one last taken by user instead
 
     elif c == 32:
-        screenshot = "file_screenshot_{}.png".format(count)
-        cv2.imwrite(screenshot, frameGray)
-      
+        screenshot = "file_screenshot_0.png" #.format(count)
+        cv2.imwrite(screenshot, frame)
         count += 1
-
-# moving on to detecting  edges in the image
-
-# beginning by adding grayscale to the webcam
-# using gaussian blur to remove extra noise and detail, makes it easier to find the edges
-
-
-    frameGray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    frame = cv2.GaussianBlur(frame, (7, 7), 1.41)
- 
-# smoothening the image to help find edges
-
-    kernel = np.ones((15,15),np.float32)/225
-    smooth = cv2.filter2D(frame, -1, kernel)
 
     cv2.imshow('Original video', frame)
 
 cam.release()
 cv2.destroyAllWindows()
 
+################################ OPENING THE SCREENSHOT THAT THE USER HAS TAKEN ################################
 
-  #  threshold = cv2.adaptiveThreshold(smooth, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN.C, cv2.THRESH_BINARY,11,2)
+# opening the latest screenshot the user has taken
 
-# displaying the current webcam feed to the monitor
+# using matplotlib as a way to visualize the edges that are going to be detected
 
-# cv2.imshow('Original video', frame)    
-   # cv2.imshow('Original video', smooth)
+# moving on to detecting  edges in the image
+
+# first attempt at canny algorithm
+
+# beginning by adding grayscale to the webcam
+# using gaussian blur to remove extra noise and detail, makes it easier to find the edges
+
+img = cv2.imread("file_screenshot_0.png")
+
+img2 = cv2.GaussianBlur(img, (7, 7), 1.41)
+
+edges = cv2.Canny(img2, 100, 200)
+
+# smoothening the image to help find edges
+
+kernel = np.ones((15, 15),np.float32)/225
+edges = cv2.filter2D(edges, -1, kernel)
+
+plt.subplots(figsize=(20, 20))
+
+plt.imshow(edges,cmap = 'gray')
+
+plt.show()
 
 
 
