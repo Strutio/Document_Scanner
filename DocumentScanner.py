@@ -38,18 +38,16 @@ while True:
     elif c == 32:
         screenshot = "file_screenshot_0.png" #.format(count)
         cv2.imwrite(screenshot, frame)
-        count += 1
+      
 
     cv2.imshow('Original video', frame)
 
 cam.release()
 cv2.destroyAllWindows()
 
-################################ OPENING THE SCREENSHOT THAT THE USER HAS TAKEN ################################
+################################ USING CANNY EDGE ON SCREENSHOT THAT THE USER HAS TAKEN ################################
 
 # opening the latest screenshot the user has taken
-
-# using matplotlib as a way to visualize the edges that are going to be detected
 
 # moving on to detecting  edges in the image
 
@@ -65,24 +63,26 @@ img2 = cv2.GaussianBlur(img2, (7, 7), 1.41)
 
 edges = cv2.Canny(img2, 100, 200)
 
-cv2.imshow("Original image", edges)
+cv2.imshow("Original image", img2)
+
+################################ END OF CANNY EDGE FUNCTION ################################
 
 # smoothening the image to help find edges
-
 # felt that smoothening the image caused borders to be more skewed, decided to comment it out for the time being
 
 #kernel = np.ones((15, 15),np.float32)/225
 #edges = cv2.filter2D(edges, -1, kernel)
 
-#### END OF SMOOTHENING ####
+################################ END OF SMOOTHENING ################################
 
-#### CONTOUR FUNCTION ####
+################################ CONTOUR FUNCTION ################################
 
 # look at these params documentation further
 
 # first param is source image, second is contour retrieval mode, third is contour approximation method
 
 contours, hierarchy = cv2.findContours(edges.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
 
 # now drawing the contours
 
@@ -91,4 +91,41 @@ contours, hierarchy = cv2.findContours(edges.copy(), cv2.RETR_TREE, cv2.CHAIN_AP
 cv2.drawContours(img2, contours, -1, (0,255,0), 3)
 
 cv2.imshow("Contoured image", img2)  
+cv2.waitKey(0)
+
+################################ END OF CONTOUR FUNCTION ################################
+
+################################ BEGINNING OF BIRDS EYE VIEW FUNCTION ################################
+
+perimeter = cv2.arcLength(contours[0], True)
+
+epsilon = 0.02 * perimeter
+approxCorners = cv2.approxPolyDP(contours[0], epsilon, True)
+
+approxCornersNumber = len(approxCorners)
+
+print("Number of approximated corners: ", approxCornersNumber)
+
+
+
+# right now i am trying to access the coordinates stored within approxCorners, and now trying to loop through them
+# in an array to print them out at their appropriate locations
+
+
+i = 0
+
+font = cv2.FONT_HERSHEY_COMPLEX
+
+
+while (count < approxCornersNumber and i < approxCornersNumber):
+        x = approxCorners[i][0][0]
+        y = approxCorners[i][0][1]
+        coords = str(x) + " " + str(y)
+        print(coords)
+        cv2.putText(img2, coords, (861,1122), font, 0.5, (255, 0, 0))
+
+        count -= 1
+        i += 1
+
+cv2.imshow("Attempt at coordinates", img2)
 cv2.waitKey(0)
