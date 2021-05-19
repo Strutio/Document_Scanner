@@ -92,10 +92,13 @@ cv2.drawContours(img2, contours, -1, (0,255,0), 3)
 
 cv2.imshow("Contoured image", img2)  
 cv2.waitKey(0)
+cv2.destroyAllWindows()
 
 ################################ END OF CONTOUR FUNCTION ################################
 
 ################################ BEGINNING OF BIRDS EYE VIEW FUNCTION ################################
+
+# using approxPolyDP to get coordinates of the four edges found in contour
 
 perimeter = cv2.arcLength(contours[0], True)
 
@@ -116,16 +119,57 @@ i = 0
 
 font = cv2.FONT_HERSHEY_COMPLEX
 
+# using .shape to get height and width of image
+
+heightWidth = img.shape
+
+height = heightWidth[0]
+width  = heightWidth[1]
+
+print(height)
+print(width)
+
+  # first coord is top left corner
+  # second coord is bottom left corner
+  # third coord is bottom right corner
+  # fourth coord is top right corner
+
+pts1 = np.float32([approxCorners[0], approxCorners[3], approxCorners[1], approxCorners[2]])
+pts2 = np.float32([[0,0], [850, 0], [0, 1100], [850, 1100]])
+
+
+
+matrix = cv2.getPerspectiveTransform(pts1, pts2)
+
+print(matrix)
+
+imgPrint = cv2.warpPerspective(img2, matrix, (850, 1100)) 
+
+corners = []
+
+
 
 while (count < approxCornersNumber and i < approxCornersNumber):
         x = approxCorners[i][0][0]
         y = approxCorners[i][0][1]
         coords = str(x) + " " + str(y)
         print(coords)
-        cv2.putText(img2, coords, (861,1122), font, 0.5, (255, 0, 0))
+
+        cv2.putText(img2, coords, (x,y), font, 0.5, (255, 0, 0))
 
         count -= 1
         i += 1
 
-cv2.imshow("Attempt at coordinates", img2)
+
+# using threshold on the image to make it black and white
+
+lastImage = cv2.adaptiveThreshold(imgPrint, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
+
+imgA = [0,0]
+imgB = 0
+print(pts1)
+
+
+
+cv2.imshow("Attempt at coordinates", lastImage)
 cv2.waitKey(0)
