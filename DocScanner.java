@@ -14,7 +14,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class DatabaseHelper {
-    private static final String URL = "jdbc:mysql://localhost:3306/document_scanner";
+    private static final String URL = "";
     private static final String USER = "your_username";
     private static final String PASSWORD = "your_password";
 
