@@ -1,20 +1,23 @@
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfByte;
+import org.opencv.core.*;
 import org.opencv.videoio.VideoCapture;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
+
 import javax.swing.*;
-import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
-public class DatabaseHelper {
-    private static final String URL = "";
+// MySQL Database Helper Class
+class DatabaseHelper {
+    private static final String URL = "your_database_url";  // Replace with your MySQL DB URL
     private static final String USER = "your_username";
     private static final String PASSWORD = "your_password";
 
@@ -23,7 +26,7 @@ public class DatabaseHelper {
     }
 }
 
-
+// Document Scanner Class
 public class DocScanner extends JFrame {
     private JLabel imageView;
 
@@ -66,43 +69,98 @@ public class DocScanner extends JFrame {
         videoCapture.release();
     }
 
-
     private void processFrame(Mat frame) {
-    // You can perform any image processing here
-    // For simplicity, we'll just convert the frame to grayscale
-    Mat grayFrame = new Mat();
-    Imgproc.cvtColor(frame, grayFrame, Imgproc.COLOR_BGR2GRAY);
+        // Convert the frame to grayscale
+        Mat grayFrame = new Mat();
+        Imgproc.cvtColor(frame, grayFrame, Imgproc.COLOR_BGR2GRAY);
 
-    // Encode the frame as a JPEG image
-    MatOfByte buffer = new MatOfByte();
-    Imgcodecs.imencode(".jpg", grayFrame, buffer);
+        // Apply Gaussian blur to reduce noise
+        Imgproc.GaussianBlur(grayFrame, grayFrame, new Size(5, 5), 0);
 
-    // Convert encoded image data to byte array
-    byte[] imageData = buffer.toArray();
+        // Edge detection using Canny algorithm
+        Mat edged = new Mat();
+        Imgproc.Canny(grayFrame, edged, 75, 200);
 
-    // Saving image to MySQL database
-    saveImageToDatabase(imageData);
+        // Find contours
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(edged, contours, hierarchy, Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
 
-    // Display the processed frame
-    ImageIcon image = new ImageIcon(imageData);
-    imageView.setIcon(image);
-}
+        if (!contours.isEmpty()) {
+            // Sort contours by area and keep only the largest one
+            contours.sort(Comparator.comparingDouble(Imgproc::contourArea));
+            Collections.reverse(contours);
 
+            Mat warped = applyPerspectiveTransform(frame, contours);
 
-private void saveImageToDatabase(byte[] imageData) {
-    String sql = "INSERT INTO scanned_documents (image_data) VALUES (?)";
+            // Encode the warped image as a JPEG
+            MatOfByte buffer = new MatOfByte();
+            Imgcodecs.imencode(".jpg", warped, buffer);
 
-    try (Connection conn = DatabaseHelper.connect();
-         PreparedStatement pstmt = conn.prepareStatement(sql)) {
-        
-        pstmt.setBytes(1, imageData);
-        pstmt.executeUpdate();
+            // Convert encoded image data to byte array and display
+            byte[] imageData = buffer.toArray();
+            ImageIcon image = new ImageIcon(imageData);
+            imageView.setIcon(image);
 
-        System.out.println("Image saved to database.");
-    } catch (SQLException e) {
-        e.printStackTrace();
+            // Save the processed image to the database
+            saveImageToDatabase(imageData);
+        }
     }
-}
+
+    private Mat applyPerspectiveTransform(Mat frame, List<MatOfPoint> contours) {
+        MatOfPoint largestContour = contours.get(0);
+        MatOfPoint2f contour2f = new MatOfPoint2f(largestContour.toArray());
+
+        // Approximate the contour to a polygon to get the document corners
+        MatOfPoint2f approxContour = new MatOfPoint2f();
+        double peri = Imgproc.arcLength(contour2f, true);
+        Imgproc.approxPolyDP(contour2f, approxContour, 0.02 * peri, true);
+
+        if (approxContour.total() == 4) {
+            Point[] points = approxContour.toArray();
+
+            // Sort points in a consistent order (top-left, top-right, bottom-right, bottom-left)
+            Point tl = points[0];
+            Point tr = points[1];
+            Point br = points[2];
+            Point bl = points[3];
+
+            // Define the destination points for the bird's-eye view
+            Point[] dstPoints = {
+                new Point(0, 0),
+                new Point(frame.width() - 1, 0),
+                new Point(frame.width() - 1, frame.height() - 1),
+                new Point(0, frame.height() - 1)
+            };
+
+            MatOfPoint2f dst = new MatOfPoint2f(dstPoints);
+            Mat transformMatrix = Imgproc.getPerspectiveTransform(approxContour, dst);
+
+            // Apply the perspective transformation
+            Mat warped = new Mat();
+            Imgproc.warpPerspective(frame, warped, transformMatrix, new Size(frame.width(), frame.height()));
+
+            return warped;
+        }
+
+        // If no contour was found or no perspective transformation applied, return the original frame
+        return frame;
+    }
+
+    private void saveImageToDatabase(byte[] imageData) {
+        String sql = "INSERT INTO scanned_documents (image_data) VALUES (?)";
+
+        try (Connection conn = DatabaseHelper.connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setBytes(1, imageData);
+            pstmt.executeUpdate();
+
+            System.out.println("Image saved to database.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     private void close() {
         System.out.println("Closing webcam scanner...");
